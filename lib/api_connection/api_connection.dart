@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '/model/api_model.dart';
 import '/model/user_model.dart';
 import '/model/produit_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _base = "https://freshm.herokuapp.com";
 final _tokenEndpoint = "/api-token-auth/";
@@ -18,7 +19,10 @@ Future<Token> getToken(UserLogin userLogin) async {
     },
     body: jsonEncode(userLogin.toDatabaseJson()),
   );
+     SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setString('token',json.decode(response.body)["token"]);
   if (response.statusCode == 200) {
+  
     return Token.fromJson(json.decode(response.body));
   } else {
     print(json.decode(response.body).toString());
@@ -26,48 +30,47 @@ Future<Token> getToken(UserLogin userLogin) async {
   }
 }
 
-class UserProvider with ChangeNotifier{
-  UserProvider() {
-    this.fetchTasks();
-
-
-  }
-  List<User>_users =[];
-  List<User>get users{
-    return[..._users];
-  }
-
-fetchTasks() async{
-    final url ='https://freshm.herokuapp.com/api/user/?format=json';
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      var data = json.decode(response.body) as List;
-      _users = data.map<User>((json) => User.fromJson(json)).toList();
-      notifyListeners();
-
-  }}
-
-}
-
 
 
 Future<List<Produit>> fetchProduit() async {
-  final response =
-      await http.get(Uri.parse('https://freshm.herokuapp.com/api/list-produit'),
-      headers: <String, String>{
-        
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Token 8647f6408ad97d8180d1574447fc9492b34cf561' ,
-      
-      },
-      );
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? token = prefs.getString('token');
+  final response = await http.get(
+    Uri.parse('https://freshm.herokuapp.com/api/list-produit-agent'),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Token $token',
+     
+     
+    },
+  );
 
   if (response.statusCode == 200) {
     final parsed = json.decode(response.body).cast<Map<String, dynamic>>();
 
     return parsed.map<Produit>((json) => Produit.fromMap(json)).toList();
   } else {
-    throw Exception('Failed to load album');
+    throw Exception('Impossible de charger les produit');
+  }
+}
+
+class UserProvider with ChangeNotifier {
+  UserProvider() {
+    this.fetchTasks();
+  }
+  List<User> _users = [];
+  List<User> get users {
+    return [..._users];
+  }
+
+  fetchTasks() async {
+    final url = 'https://freshm.herokuapp.com/api/user/?format=json';
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body) as List;
+      _users = data.map<User>((json) => User.fromJson(json)).toList();
+      notifyListeners();
+    }
   }
 }
 // }
